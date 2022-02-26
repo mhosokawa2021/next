@@ -1,6 +1,11 @@
 import Layout from "../components/Layout";
 import Input from "./input";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
+import { db } from "../src/firebase";
+import { collection, addDoc } from "firebase/firestore";
+
+import { getStorage, ref, getDownloadURL, uploadBytesResumable, } from "firebase/storage";
 
 const Upload = () => {
     const [title, setTitle] = useState();
@@ -9,9 +14,37 @@ const Upload = () => {
     const [text, setText] = useState();
     const [image, setImage] = useState();
 
-    const uploadPost=()=>{
-        console.log(title,date,url,text,image)
-    }
+    const handleSubmit = () => {
+        const storage = getStorage();
+        const storageRef = ref(storage, `image/${image.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, image);
+        uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+                console.log("成功");
+            },
+            (error) => {
+                console.log(error);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    try {
+                        const postsCollectionRef = collection(db, "posts");
+                        addDoc(postsCollectionRef, {
+                            title: title,
+                            date: date,
+                            url: url,
+                            text: text,
+                            imageUrl: downloadURL,
+                        });
+                    } catch (error) {
+                        console.error("Error adding document: ", error);
+                    }
+                });
+            }
+        );
+        alert("投稿が完了しました");
+    };
 
  return (
     <Layout>
@@ -26,7 +59,7 @@ const Upload = () => {
 
              <div className="col-span-2 lg:col-span-1">
                  <div className=" relative ">
-                         <input type="file" onChange={(e) => setImage(e.target.value)}/>
+                         <input type="file" onChange={(e) => setImage(e.target.files[0])} />
                  </div>
              </div>
              <div className="col-span-2">
@@ -44,7 +77,7 @@ const Upload = () => {
                  <button
                      type="submit"
                      className="py-2 px-4  bg-blue-400 hover:bg-blue-700 focus:ring-indigo-500 focus:ring-offset-indigo-200 text-white w-full transition ease-in duration-200 text-center text-base font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2  rounded-lg "
-                    onClick={uploadPost}
+                         onClick={handleSubmit}
                  >
                      投稿
                  </button>
